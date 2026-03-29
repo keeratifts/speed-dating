@@ -240,6 +240,9 @@ export default function RegisterPage() {
                   value={age}
                   onChange={e => setAge(Number(e.target.value))}
                   className="w-full mt-3"
+                  style={{
+                    background: `linear-gradient(to right, #ff4d8d ${((age - 18) / (60 - 18)) * 100}%, #252540 ${((age - 18) / (60 - 18)) * 100}%)`
+                  }}
                 />
                 <div className="flex justify-between mt-1">
                   <span className="text-xs text-muted">18</span>
@@ -248,7 +251,7 @@ export default function RegisterPage() {
               </div>
             </div>
           </section>
-
+        
           {/* Self-ratings */}
           <section className="card-glass rounded-2xl p-6">
             <h2 className="font-display text-xl font-bold text-bright mb-1 flex items-center gap-2">
