@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import Layout from '../components/Layout';
 import type { UserProfile, RatingSet, MatchResult } from '../lib/matchModel';
 import { computeAllMatches } from '../lib/matchModel';
@@ -238,7 +239,13 @@ export default function ResultsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-text">{match.name}</span>
+                        <Link
+                          href={`/match/${match.userId}`}
+                          className="font-semibold text-text hover:text-rose transition-colors underline-offset-2 hover:underline"
+                          title="See how Naive Bayes calculated this"
+                        >
+                          {match.name}
+                        </Link>
                         <MatchVerdict match={match} />
                       </div>
                       <div className="text-xs text-muted mt-0.5">Age {match.age}</div>
