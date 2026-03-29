@@ -241,10 +241,16 @@ export default function ResultsPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <Link
                           href={`/match/${match.userId}`}
-                          className="font-semibold text-text hover:text-rose transition-colors underline-offset-2 hover:underline"
-                          title="See how Naive Bayes calculated this"
+                          className="font-semibold text-text hover:text-rose transition-colors"
                         >
                           {match.name}
+                        </Link>
+                        <Link
+                          href={`/match/${match.userId}`}
+                          className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border border-border bg-surface text-dim hover:border-rose/40 hover:text-rose transition-all"
+                          title="See step-by-step Naive Bayes calculation"
+                        >
+                          ◈ see calc
                         </Link>
                         <MatchVerdict match={match} />
                       </div>
