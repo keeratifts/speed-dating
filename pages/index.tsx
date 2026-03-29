@@ -6,15 +6,88 @@ import SliderField from '../components/SliderField';
 import type { UserProfile } from '../lib/matchModel';
 
 const ATTRS = [
-  { key: 'attr', label: 'Attractiveness', sublabel: 'Physical appeal' },
-  { key: 'sinc', label: 'Sincerity', sublabel: 'Authenticity' },
-  { key: 'intel', label: 'Intelligence', sublabel: 'Wit & depth' },
-  { key: 'fun', label: 'Fun', sublabel: 'Playfulness' },
-  { key: 'amb', label: 'Ambition', sublabel: 'Drive & goals' },
-  { key: 'shar', label: 'Shared Interests', sublabel: 'Common ground' },
+  {
+    key: 'attr' as const,
+    label: 'ความน่าดึงดูด',
+    sublabel: 'Attractiveness',
+    description: 'รูปลักษณ์ภายนอกและบุคลิกภาพโดยรวมที่ผู้อื่นมองเห็น',
+  },
+  {
+    key: 'sinc' as const,
+    label: 'ความจริงใจ',
+    sublabel: 'Sincerity',
+    description: 'ความซื่อสัตย์และความเป็นตัวของตัวเองในการแสดงออก',
+  },
+  {
+    key: 'intel' as const,
+    label: 'สติปัญญา',
+    sublabel: 'Intelligence',
+    description: 'ความสามารถในการสนทนาและแลกเปลี่ยนความคิด',
+  },
+  {
+    key: 'fun' as const,
+    label: 'ความสนุกสนาน',
+    sublabel: 'Fun',
+    description: 'ความสามารถในการสร้างบรรยากาศที่ผ่อนคลายและมีชีวิตชีวา',
+  },
+  {
+    key: 'amb' as const,
+    label: 'ความมุ่งมั่น',
+    sublabel: 'Ambition',
+    description: 'การมีเป้าหมายและทิศทางในชีวิตที่ชัดเจน',
+  },
+  {
+    key: 'shar' as const,
+    label: 'ความสนใจร่วม',
+    sublabel: 'Shared Interests',
+    description: 'ความสนใจและกิจกรรมที่คล้ายคลึงกับผู้อื่น',
+  },
 ] as const;
 
-const PREF_ATTRS = ATTRS.map(a => ({ ...a, prefKey: `pref_${a.key}` as const }));
+const PREF_ATTRS = [
+  {
+    key: 'attr' as const,
+    prefKey: 'pref_attr' as const,
+    label: 'ความน่าดึงดูด',
+    sublabel: 'Attractiveness',
+    description: 'คุณให้ความสำคัญกับรูปลักษณ์และบุคลิกภาพมากแค่ไหน',
+  },
+  {
+    key: 'sinc' as const,
+    prefKey: 'pref_sinc' as const,
+    label: 'ความจริงใจ',
+    sublabel: 'Sincerity',
+    description: 'คุณให้ความสำคัญกับความจริงใจและความซื่อตรงมากแค่ไหน',
+  },
+  {
+    key: 'intel' as const,
+    prefKey: 'pref_intel' as const,
+    label: 'สติปัญญา',
+    sublabel: 'Intelligence',
+    description: 'คุณให้ความสำคัญกับการสนทนาที่มีความลึกมากแค่ไหน',
+  },
+  {
+    key: 'fun' as const,
+    prefKey: 'pref_fun' as const,
+    label: 'ความสนุกสนาน',
+    sublabel: 'Fun',
+    description: 'คุณให้ความสำคัญกับความสนุกและบรรยากาศดีมากแค่ไหน',
+  },
+  {
+    key: 'amb' as const,
+    prefKey: 'pref_amb' as const,
+    label: 'ความมุ่งมั่น',
+    sublabel: 'Ambition',
+    description: 'คุณให้ความสำคัญกับคนที่มีเป้าหมายชีวิตมากแค่ไหน',
+  },
+  {
+    key: 'shar' as const,
+    prefKey: 'pref_shar' as const,
+    label: 'ความสนใจร่วม',
+    sublabel: 'Shared Interests',
+    description: 'คุณให้ความสำคัญกับการมีความสนใจเหมือนกันมากแค่ไหน',
+  },
+];
 
 type AttrKey = typeof ATTRS[number]['key'];
 
@@ -183,11 +256,12 @@ export default function RegisterPage() {
             </h2>
             <p className="text-xs text-muted mb-5">How would others objectively rate you? Be honest.</p>
             <div className="grid sm:grid-cols-2 gap-5">
-              {ATTRS.map(({ key, label, sublabel }) => (
+              {ATTRS.map(({ key, label, sublabel, description }) => (
                 <SliderField
                   key={key}
                   label={label}
                   sublabel={sublabel}
+                  description={description}
                   value={selfRatings[key]}
                   onChange={v => setSelfRatings(prev => ({ ...prev, [key]: v }))}
                   color="rose"
@@ -216,11 +290,12 @@ export default function RegisterPage() {
             </div>
             <p className="text-xs text-muted mb-5">Weights must sum to 100. Used in match prediction.</p>
             <div className="grid sm:grid-cols-2 gap-5">
-              {PREF_ATTRS.map(({ key, label, sublabel, prefKey }) => (
+              {PREF_ATTRS.map(({ key, label, sublabel, description, prefKey }) => (
                 <SliderField
                   key={prefKey}
                   label={label}
                   sublabel={sublabel}
+                  description={description}
                   value={prefWeights[prefKey]}
                   min={0}
                   max={50}

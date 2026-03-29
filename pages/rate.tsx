@@ -5,12 +5,42 @@ import SliderField from '../components/SliderField';
 import type { UserProfile, RatingSet } from '../lib/matchModel';
 
 const ATTRS = [
-  { key: 'attr' as const, label: 'Attractiveness' },
-  { key: 'sinc' as const, label: 'Sincerity' },
-  { key: 'intel' as const, label: 'Intelligence' },
-  { key: 'fun' as const, label: 'Fun' },
-  { key: 'amb' as const, label: 'Ambition' },
-  { key: 'shar' as const, label: 'Shared Interests' },
+  {
+    key: 'attr' as const,
+    label: 'ความน่าดึงดูด',
+    sublabel: 'Attractiveness',
+    description: 'รูปลักษณ์และบุคลิกภาพโดยรวมของเขา/เธอ',
+  },
+  {
+    key: 'sinc' as const,
+    label: 'ความจริงใจ',
+    sublabel: 'Sincerity',
+    description: 'ความจริงใจและความเป็นตัวเองของเขา/เธอ',
+  },
+  {
+    key: 'intel' as const,
+    label: 'สติปัญญา',
+    sublabel: 'Intelligence',
+    description: 'ความสามารถในการสนทนาและแลกเปลี่ยนความคิด',
+  },
+  {
+    key: 'fun' as const,
+    label: 'ความสนุกสนาน',
+    sublabel: 'Fun',
+    description: 'บรรยากาศและความสนุกที่รู้สึกได้เมื่ออยู่ด้วยกัน',
+  },
+  {
+    key: 'amb' as const,
+    label: 'ความมุ่งมั่น',
+    sublabel: 'Ambition',
+    description: 'ทิศทางและเป้าหมายในชีวิตที่เขา/เธอแสดงออกมา',
+  },
+  {
+    key: 'shar' as const,
+    label: 'ความสนใจร่วม',
+    sublabel: 'Shared Interests',
+    description: 'ความสนใจและกิจกรรมที่รู้สึกว่าตรงกับตัวเอง',
+  },
 ];
 
 const DEFAULT_RATING = { attr: 7, sinc: 7, intel: 7, fun: 7, amb: 6, shar: 6 };
@@ -162,10 +192,12 @@ export default function RatePage() {
                 </div>
 
                 <div className="space-y-5 mb-7">
-                  {ATTRS.map(({ key, label }) => (
+                  {ATTRS.map(({ key, label, sublabel, description }) => (
                     <SliderField
                       key={key}
                       label={label}
+                      sublabel={sublabel}
+                      description={description}
                       value={currentRating[key]}
                       onChange={v => setCurrentRating(prev => ({ ...prev, [key]: v }))}
                       color="rose"

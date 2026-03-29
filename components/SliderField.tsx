@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 interface SliderFieldProps {
   label: string;
   sublabel?: string;
+  description?: string;
   value: number;
   min?: number;
   max?: number;
@@ -21,6 +22,7 @@ const colorMap = {
 export default function SliderField({
   label,
   sublabel,
+  description,
   value,
   min = 1,
   max = 10,
@@ -41,20 +43,41 @@ export default function SliderField({
 
   return (
     <div className="group">
-      <div className="flex items-baseline justify-between mb-2">
-        <div>
-          <span className="text-sm font-medium text-text">{label}</span>
-          {sublabel && <span className="ml-2 text-xs text-muted">{sublabel}</span>}
+      <div className="flex items-baseline justify-between mb-1">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span
+            className="text-sm font-semibold text-text"
+            style={{ fontFamily: "'Sarabun', 'Noto Sans Thai', sans-serif" }}
+          >
+            {label}
+          </span>
+          {sublabel && (
+            <span className="text-xs font-normal" style={{ color: '#6b6b99' }}>
+              {sublabel}
+            </span>
+          )}
         </div>
         {showValue && (
           <span
-            className="font-mono text-sm font-bold tabular-nums"
+            className="font-mono text-sm font-bold tabular-nums flex-shrink-0 ml-2"
             style={{ color: colorMap[color] }}
           >
             {value}{suffix}
           </span>
         )}
       </div>
+      {description && (
+        <p
+          className="text-xs mb-2 leading-relaxed"
+          style={{
+            color: '#4a4a70',
+            fontWeight: 300,
+            fontFamily: "'Sarabun', 'Noto Sans Thai', sans-serif",
+          }}
+        >
+          {description}
+        </p>
+      )}
       <input
         ref={inputRef}
         type="range"
