@@ -44,52 +44,32 @@ const ATTRS = [
   },
 ] as const;
 
-const PREF_ATTRS = [
-  {
-    key: 'attr' as const,
-    prefKey: 'pref_attr' as const,
-    label: 'ความน่าดึงดูด',
-    sublabel: 'Attractiveness',
-    description: 'คุณให้ความสำคัญกับรูปลักษณ์และบุคลิกภาพมากแค่ไหน',
-  },
-  {
-    key: 'sinc' as const,
-    prefKey: 'pref_sinc' as const,
-    label: 'ความจริงใจ',
-    sublabel: 'Sincerity',
-    description: 'คุณให้ความสำคัญกับความจริงใจและความซื่อตรงมากแค่ไหน',
-  },
-  {
-    key: 'intel' as const,
-    prefKey: 'pref_intel' as const,
-    label: 'สติปัญญา',
-    sublabel: 'Intelligence',
-    description: 'คุณให้ความสำคัญกับการสนทนาที่มีความลึกมากแค่ไหน',
-  },
-  {
-    key: 'fun' as const,
-    prefKey: 'pref_fun' as const,
-    label: 'ความสนุกสนาน',
-    sublabel: 'Fun',
-    description: 'คุณให้ความสำคัญกับความสนุกและบรรยากาศดีมากแค่ไหน',
-  },
-  {
-    key: 'amb' as const,
-    prefKey: 'pref_amb' as const,
-    label: 'ความมุ่งมั่น',
-    sublabel: 'Ambition',
-    description: 'คุณให้ความสำคัญกับคนที่มีเป้าหมายชีวิตมากแค่ไหน',
-  },
-  {
-    key: 'shar' as const,
-    prefKey: 'pref_shar' as const,
-    label: 'ความสนใจร่วม',
-    sublabel: 'Shared Interests',
-    description: 'คุณให้ความสำคัญกับการมีความสนใจเหมือนกันมากแค่ไหน',
-  },
-];
-
 type AttrKey = typeof ATTRS[number]['key'];
+
+// Icons for each attribute
+const ATTR_ICONS: Record<AttrKey, string> = {
+  attr: '✨',
+  sinc: '🤝',
+  intel: '💡',
+  fun: '🎉',
+  amb: '🎯',
+  shar: '🎨',
+};
+
+// Rank order → weight mapping (rank 1 = most important)
+// Uses a descending scale that sums to 100
+const RANK_WEIGHTS = [35, 25, 17, 11, 7, 5]; // 6 ranks, sums to 100
+
+function rankToWeights(rankOrder: AttrKey[]): Record<string, number> {
+  const weights: Record<string, number> = {};
+  rankOrder.forEach((key, idx) => {
+    weights[`pref_${key}`] = RANK_WEIGHTS[idx];
+  });
+  return weights;
+}
+
+// Default rank order
+const DEFAULT_RANK: AttrKey[] = ['attr', 'intel', 'fun', 'sinc', 'shar', 'amb'];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -98,12 +78,13 @@ export default function RegisterPage() {
   const [selfRatings, setSelfRatings] = useState<Record<AttrKey, number>>({
     attr: 7, sinc: 7, intel: 7, fun: 7, amb: 6, shar: 6,
   });
-  const [prefWeights, setPrefWeights] = useState<Record<string, number>>({
-    pref_attr: 20, pref_sinc: 15, pref_intel: 20, pref_fun: 20, pref_amb: 10, pref_shar: 15,
-  });
+  // Preference ranking — ordered list from most to least important
+  const [rankOrder, setRankOrder] = useState<AttrKey[]>(DEFAULT_RANK);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const id = localStorage.getItem('sd_userId');
@@ -112,28 +93,37 @@ export default function RegisterPage() {
     if (n) setName(n);
   }, []);
 
-  const totalWeight = Object.values(prefWeights).reduce((s, v) => s + v, 0);
-
-  const setPref = (key: string, val: number) => {
-    setPrefWeights(prev => ({ ...prev, [key]: val }));
+  // Move a card up or down by one position
+  const moveCard = (idx: number, dir: -1 | 1) => {
+    const newOrder = [...rankOrder];
+    const target = idx + dir;
+    if (target < 0 || target >= newOrder.length) return;
+    [newOrder[idx], newOrder[target]] = [newOrder[target], newOrder[idx]];
+    setRankOrder(newOrder);
   };
 
-  const normalize = () => {
-    const total = Object.values(prefWeights).reduce((s, v) => s + v, 0);
-    if (total === 0) return;
-    const factor = 100 / total;
-    setPrefWeights(prev =>
-      Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, Math.round(v * factor)]))
-    );
+  // Drag handlers
+  const onDragStart = (idx: number) => setDragIdx(idx);
+  const onDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    setDragOverIdx(idx);
+  };
+  const onDrop = (idx: number) => {
+    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return; }
+    const newOrder = [...rankOrder];
+    const [moved] = newOrder.splice(dragIdx, 1);
+    newOrder.splice(idx, 0, moved);
+    setRankOrder(newOrder);
+    setDragIdx(null);
+    setDragOverIdx(null);
   };
 
   const handleSubmit = async () => {
     if (!name.trim()) return setError('Please enter your name');
-    if (totalWeight < 95 || totalWeight > 105) return setError('Preference weights must sum to ~100');
-
     setLoading(true);
     setError('');
     try {
+      const prefWeights = rankToWeights(rankOrder);
       const id = uuidv4();
       const user: UserProfile = {
         id, name: name.trim(), age,
@@ -163,6 +153,24 @@ export default function RegisterPage() {
     setAlreadyRegistered(false);
   };
 
+  const rankLabels = ['สำคัญที่สุด', 'สำคัญมาก', 'ค่อนข้างสำคัญ', 'ปานกลาง', 'น้อย', 'น้อยที่สุด'];
+  const rankColors = [
+    'border-rose/60 bg-rose/10',
+    'border-rose/40 bg-rose/7',
+    'border-teal/40 bg-teal/8',
+    'border-teal/25 bg-teal/5',
+    'border-border bg-surface/60',
+    'border-border bg-surface/40',
+  ];
+  const rankBadgeColors = [
+    'bg-rose text-white',
+    'bg-rose/70 text-white',
+    'bg-teal/80 text-void',
+    'bg-teal/50 text-void',
+    'bg-muted/60 text-dim',
+    'bg-muted/40 text-muted',
+  ];
+
   return (
     <Layout>
       {/* Hero */}
@@ -176,7 +184,7 @@ export default function RegisterPage() {
           <span className="text-gradient-rose">perfect match</span>
         </h1>
         <p className="text-dim max-w-md mx-auto text-sm leading-relaxed">
-          Rate each other, and our Naive Bayes model — trained on real Columbia University 
+          Rate each other, and our Naive Bayes model — trained on real Columbia University
           speed dating data — predicts your mutual attraction.
         </p>
       </div>
@@ -218,9 +226,7 @@ export default function RegisterPage() {
             </h2>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-text mb-1.5">
-                  Your name
-                </label>
+                <label className="block text-sm font-medium text-text mb-1.5">Your name</label>
                 <input
                   type="text"
                   value={name}
@@ -234,15 +240,9 @@ export default function RegisterPage() {
                   Age <span className="text-rose font-mono font-bold">{age}</span>
                 </label>
                 <input
-                  type="range"
-                  min={18}
-                  max={60}
-                  value={age}
+                  type="range" min={18} max={60} value={age}
                   onChange={e => setAge(Number(e.target.value))}
                   className="w-full mt-3"
-                  style={{
-                    background: `linear-gradient(to right, #ff4d8d ${((age - 18) / (60 - 18)) * 100}%, #252540 ${((age - 18) / (60 - 18)) * 100}%)`
-                  }}
                 />
                 <div className="flex justify-between mt-1">
                   <span className="text-xs text-muted">18</span>
@@ -251,7 +251,7 @@ export default function RegisterPage() {
               </div>
             </div>
           </section>
-        
+
           {/* Self-ratings */}
           <section className="card-glass rounded-2xl p-6">
             <h2 className="font-display text-xl font-bold text-bright mb-1 flex items-center gap-2">
@@ -273,46 +273,137 @@ export default function RegisterPage() {
             </div>
           </section>
 
-          {/* Preference weights */}
+          {/* Preference ranking — replaces the old slider/weight section */}
           <section className="card-glass rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-1">
-              <h2 className="font-display text-xl font-bold text-bright flex items-center gap-2">
-                <span className="text-teal">03</span> What Matters to You?
-              </h2>
-              <div className="flex items-center gap-2">
-                <span className={`font-mono text-sm font-bold ${Math.abs(totalWeight - 100) < 6 ? 'text-teal' : 'text-rose'}`}>
-                  {totalWeight}/100
-                </span>
-                <button
-                  onClick={normalize}
-                  className="text-xs bg-surface border border-border hover:border-teal/40 text-dim hover:text-teal px-3 py-1 rounded-lg transition-colors"
-                >
-                  Auto-balance
-                </button>
+            <h2 className="font-display text-xl font-bold text-bright mb-1 flex items-center gap-2">
+              <span className="text-teal">03</span> What Matters to You?
+            </h2>
+            <p className="text-xs text-muted mb-5">
+              เรียงลำดับสิ่งที่คุณให้ความสำคัญในคู่เดต — ลาก หรือกดลูกศรเพื่อจัดลำดับ
+              <span className="block text-muted/70 mt-0.5">Drag or use arrows to rank what you value most in a date.</span>
+            </p>
+
+            <div className="space-y-2">
+              {rankOrder.map((key, idx) => {
+                const attr = ATTRS.find(a => a.key === key)!;
+                const isDragging = dragIdx === idx;
+                const isDragOver = dragOverIdx === idx;
+
+                return (
+                  <div
+                    key={key}
+                    draggable
+                    onDragStart={() => onDragStart(idx)}
+                    onDragOver={e => onDragOver(e, idx)}
+                    onDrop={() => onDrop(idx)}
+                    onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                    className={`
+                      flex items-center gap-3 p-3 rounded-xl border cursor-grab active:cursor-grabbing
+                      transition-all duration-150 select-none
+                      ${rankColors[idx]}
+                      ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
+                      ${isDragOver && !isDragging ? 'scale-[1.02] border-teal/60' : ''}
+                    `}
+                  >
+                    {/* Rank badge */}
+                    <div className={`
+                      w-7 h-7 rounded-lg flex items-center justify-center
+                      text-xs font-bold font-mono flex-shrink-0
+                      ${rankBadgeColors[idx]}
+                    `}>
+                      {idx + 1}
+                    </div>
+
+                    {/* Icon */}
+                    <span className="text-lg flex-shrink-0">{ATTR_ICONS[key]}</span>
+
+                    {/* Label */}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="text-sm font-semibold text-text leading-tight"
+                        style={{ fontFamily: "'Sarabun', 'Noto Sans Thai', sans-serif" }}
+                      >
+                        {attr.label}
+                      </div>
+                      <div className="text-xs text-muted">{attr.sublabel}</div>
+                    </div>
+
+                    {/* Importance label */}
+                    <div
+                      className="hidden sm:block text-xs text-right flex-shrink-0"
+                      style={{ fontFamily: "'Sarabun', 'Noto Sans Thai', sans-serif", color: '#6b6b99' }}
+                    >
+                      {rankLabels[idx]}
+                    </div>
+
+                    {/* Arrow controls (mobile-friendly alternative to drag) */}
+                    <div className="flex flex-col gap-0.5 flex-shrink-0">
+                      <button
+                        onClick={() => moveCard(idx, -1)}
+                        disabled={idx === 0}
+                        className="w-6 h-5 flex items-center justify-center rounded text-muted hover:text-text hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all text-xs"
+                        aria-label="Move up"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        onClick={() => moveCard(idx, 1)}
+                        disabled={idx === rankOrder.length - 1}
+                        className="w-6 h-5 flex items-center justify-center rounded text-muted hover:text-text hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all text-xs"
+                        aria-label="Move down"
+                      >
+                        ▼
+                      </button>
+                    </div>
+
+                    {/* Drag handle */}
+                    <div className="text-muted/40 flex-shrink-0 text-sm">⠿</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Visual weight summary */}
+            <div className="mt-4 p-3 bg-surface/60 rounded-xl">
+              <p className="text-xs text-muted mb-2">น้ำหนักที่ใช้ในการคำนวณ · Weight used in matching</p>
+              <div className="flex gap-1 h-4 rounded-full overflow-hidden">
+                {rankOrder.map((key, idx) => {
+                  const attr = ATTRS.find(a => a.key === key)!;
+                  const w = RANK_WEIGHTS[idx];
+                  return (
+                    <div
+                      key={key}
+                      title={`${attr.sublabel}: ${w}%`}
+                      className="h-full transition-all duration-300 first:rounded-l-full last:rounded-r-full"
+                      style={{
+                        width: `${w}%`,
+                        background: idx < 2
+                          ? `rgba(255,77,141,${1 - idx * 0.3})`
+                          : idx < 4
+                          ? `rgba(0,229,204,${0.9 - (idx - 2) * 0.3})`
+                          : `rgba(107,107,153,${0.6 - (idx - 4) * 0.2})`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex gap-1 mt-1.5">
+                {rankOrder.map((key, idx) => {
+                  const attr = ATTRS.find(a => a.key === key)!;
+                  return (
+                    <div
+                      key={key}
+                      className="text-center"
+                      style={{ width: `${RANK_WEIGHTS[idx]}%` }}
+                    >
+                      <span className="text-xs text-muted/60 truncate block" style={{ fontSize: '9px' }}>
+                        {RANK_WEIGHTS[idx]}%
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <p className="text-xs text-muted mb-5">Weights must sum to 100. Used in match prediction.</p>
-            <div className="grid sm:grid-cols-2 gap-5">
-              {PREF_ATTRS.map(({ key, label, sublabel, description, prefKey }) => (
-                <SliderField
-                  key={prefKey}
-                  label={label}
-                  sublabel={sublabel}
-                  description={description}
-                  value={prefWeights[prefKey]}
-                  min={0}
-                  max={50}
-                  onChange={v => setPref(prefKey, v)}
-                  color="teal"
-                  suffix="%"
-                />
-              ))}
-            </div>
-            {Math.abs(totalWeight - 100) >= 6 && (
-              <p className="text-xs text-rose mt-3 bg-rose/10 border border-rose/20 rounded-lg px-3 py-2">
-                ⚠ Weights currently sum to {totalWeight}. Click "Auto-balance" or adjust manually.
-              </p>
-            )}
           </section>
 
           {error && (

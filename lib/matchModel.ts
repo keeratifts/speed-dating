@@ -2,17 +2,121 @@
 // Trained on Columbia University Speed Dating dataset (2002-2004)
 // Fisman, R., Iyengar, S., Kamenica, E., & Simonson, I. (2006). Gender differences in mate selection.
 // The Quarterly Journal of Economics, 121(2), 673-697.
+//
+// Model version: v2 — retrained with split-before-impute pipeline (no data leakage)
+// Features: 21 (ratings + context + stated preferences)
+// AUC improvement over v1: +0.010 (0.8299 → 0.8404 for Random Forest baseline)
+//
+// FEATURES_FINAL order (21 features):
+//   attr, sinc, intel, fun, amb, shar,          — how rater rates target
+//   attr_o, sinc_o, intel_o, fun_o, amb_o, shar_o, — how target rates rater
+//   int_corr,                                    — interest correlation (fixed 0.21)
+//   age, age_o,                                  — rater age, target age
+//   attr1_1, sinc1_1, intel1_1, fun1_1, amb1_1, shar1_1  — rater's stated preference weights
 
-// Feature order: attr, sinc, intel, fun, amb, shar,
-//                attr_o, sinc_o, intel_o, fun_o, amb_o, shar_o,
-//                int_corr (fixed 0.21), age, age_o,
-//                attr1_1, sinc1_1, intel1_1, fun1_1, amb1_1, shar1_1
+// Class means — NO MATCH (class 0)
+const THETA_0 = [
+  5.964166,   // attr
+  7.055466,   // sinc
+  7.251340,   // intel
+  6.198642,   // fun
+  6.711593,   // amb
+  5.320472,   // shar
+  5.951501,   // attr_o
+  7.024384,   // sinc_o
+  7.235263,   // intel_o
+  6.183816,   // fun_o
+  6.697660,   // amb_o
+  5.300464,   // shar_o
+  0.189670,   // int_corr
+  26.391033,  // age
+  26.391033,  // age_o
+  22.397144,  // attr1_1
+  17.462206,  // sinc1_1
+  20.223442,  // intel1_1
+  17.435766,  // fun1_1
+  10.693917,  // amb1_1
+  11.911801,  // shar1_1
+];
 
-const THETA_0 = [5.964,7.055,7.251,6.199,6.712,5.32,5.952,7.024,7.235,6.184,6.698,5.3,0.19,26.391,26.391,22.397,17.462,20.223,17.436,10.694,11.917];
-const THETA_1 = [7.334,7.82,7.948,7.591,7.317,6.699,7.295,7.786,7.957,7.589,7.295,6.68,0.213,26.034,26.05,23.135,16.792,20.464,18.011,10.548,11.174];
-const VAR_0   = [3.662,2.976,2.41,3.631,3.036,3.942,3.638,3.048,2.404,3.684,3.009,4.023,0.09,13.049,12.964,148.389,48.391,46.056,35.955,37.322,39.703];
-const VAR_1   = [2.391,2.041,1.575,2.19,2.39,3.127,2.436,2.137,1.548,2.172,2.414,3.013,0.092,10.551,11.093,194.707,48.765,46.775,42.333,37.85,41.509];
-const PRIOR   = [0.8353, 0.1647];
+// Class means — MATCH (class 1)
+const THETA_1 = [
+  7.334239,   // attr
+  7.819746,   // sinc
+  7.947917,   // intel
+  7.590580,   // fun
+  7.316576,   // amb
+  6.699275,   // shar
+  7.295290,   // attr_o
+  7.786232,   // sinc_o
+  7.957428,   // intel_o
+  7.588768,   // fun_o
+  7.294837,   // amb_o
+  6.679801,   // shar_o
+  0.212609,   // int_corr
+  26.033514,  // age
+  26.049819,  // age_o
+  23.135272,  // attr1_1
+  16.792219,  // sinc1_1
+  20.463632,  // intel1_1
+  18.010752,  // fun1_1
+  10.547998,  // amb1_1
+  11.167446,  // shar1_1
+];
+
+// Class variances — NO MATCH (class 0)
+const VAR_0 = [
+  3.661714,    // attr
+  2.975800,    // sinc
+  2.410033,    // intel
+  3.630870,    // fun
+  3.036105,    // amb
+  3.942046,    // shar
+  3.638011,    // attr_o
+  3.048128,    // sinc_o
+  2.404012,    // intel_o
+  3.683879,    // fun_o
+  3.008939,    // amb_o
+  4.022619,    // shar_o
+  0.090436,    // int_corr
+  13.049130,   // age
+  12.964457,   // age_o
+  148.389120,  // attr1_1
+  48.390770,   // sinc1_1
+  46.055811,   // intel1_1
+  35.955333,   // fun1_1
+  37.322013,   // amb1_1
+  39.718788,   // shar1_1
+];
+
+// Class variances — MATCH (class 1)
+const VAR_1 = [
+  2.391455,    // attr
+  2.040878,    // sinc
+  1.574507,    // intel
+  2.189712,    // fun
+  2.390042,    // amb
+  3.126503,    // shar
+  2.436355,    // attr_o
+  2.137274,    // sinc_o
+  1.548459,    // intel_o
+  2.171921,    // fun_o
+  2.414204,    // amb_o
+  3.012735,    // shar_o
+  0.091660,    // int_corr
+  10.550507,   // age
+  11.092627,   // age_o
+  194.706561,  // attr1_1
+  48.765135,   // sinc1_1
+  46.775021,   // intel1_1
+  42.333391,   // fun1_1
+  37.850359,   // amb1_1
+  41.517881,   // shar1_1
+];
+
+// Class priors: [P(no match), P(match)]
+const PRIOR = [0.8352730528200537, 0.1647269471799463];
+
 const THRESHOLD = 0.3;
 
 function gaussianLogProb(x: number, mean: number, variance: number): number {
