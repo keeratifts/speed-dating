@@ -235,20 +235,14 @@ export default function RegisterPage() {
                   className="w-full bg-surface border border-border focus:border-rose/50 rounded-xl px-4 py-3 text-text placeholder-muted outline-none transition-colors text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-text mb-1.5">
-                  Age <span className="text-rose font-mono font-bold">{age}</span>
-                </label>
-                <input
-                  type="range" min={18} max={60} value={age}
-                  onChange={e => setAge(Number(e.target.value))}
-                  className="w-full mt-3"
-                />
-                <div className="flex justify-between mt-1">
-                  <span className="text-xs text-muted">18</span>
-                  <span className="text-xs text-muted">60</span>
-                </div>
-              </div>
+              <SliderField
+                label="Age"
+                value={age}
+                min={18}
+                max={60}
+                onChange={v => setAge(v)}
+                color="rose"
+              />
             </div>
           </section>
 
