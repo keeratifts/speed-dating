@@ -129,7 +129,7 @@ const VAR_1 = [
 const PRIOR = [0.8352730528200537, 0.1647269471799463];
 
 // Exported so the frontend can read the exact threshold being applied
-export const THRESHOLD = 0.780;
+export const THRESHOLD = 0.3;
 
 function gaussianLogProb(x: number, mean: number, variance: number): number {
   const diff = x - mean;
