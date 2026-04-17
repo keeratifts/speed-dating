@@ -128,7 +128,8 @@ const VAR_1 = [
 // Class priors: [P(no match), P(match)]
 const PRIOR = [0.8352730528200537, 0.1647269471799463];
 
-const THRESHOLD = 0.3;
+// Exported so the frontend can read the exact threshold being applied
+export const THRESHOLD = 0.780;
 
 function gaussianLogProb(x: number, mean: number, variance: number): number {
   const diff = x - mean;
@@ -214,6 +215,7 @@ export interface MatchResult {
   pILikeThem: number;   // P(I like them) — do I match on them?
   pTheyLikeMe: number;  // P(they like me) — do they match on me?
   pMutual: number;      // P(mutual) = pILikeThem * pTheyLikeMe
+  isMutualMatch: boolean; // Computed directly against the ML tuned threshold
   hasRatedMe: boolean;
   iHaveRated: boolean;
 }
@@ -257,13 +259,16 @@ export function computeAllMatches(
       pTheyLikeMe = predictMatchProbability(other.age, me.age, ratingsFromThem, myRatingOfThem, [other.pref_attr, other.pref_sinc, other.pref_intel, other.pref_fun, other.pref_amb, other.pref_shar]);
     }
 
+    const pMutual = pILikeThem * pTheyLikeMe;
+
     return {
       userId: other.id,
       name: other.name,
       age: other.age,
       pILikeThem,
       pTheyLikeMe,
-      pMutual: pILikeThem * pTheyLikeMe,
+      pMutual,
+      isMutualMatch: pMutual >= THRESHOLD,
       hasRatedMe,
       iHaveRated,
     };
