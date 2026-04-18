@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
-import type { UserProfile, RatingSet } from '../lib/matchModel';
+import type { UserProfile, RatingSet, MatchResult } from '../lib/matchModel';
+import { computeAllMatches, THRESHOLD } from '../lib/matchModel';
 
 export default function HostPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -10,6 +11,7 @@ export default function HostPage() {
   const [resetting, setResetting] = useState(false);
   const [resetDone, setResetDone] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -60,6 +62,16 @@ export default function HostPage() {
   const maxPossibleRatings = users.length * (users.length - 1);
   const completionPct =
     maxPossibleRatings > 0 ? Math.round((totalRatings / maxPossibleRatings) * 100) : 0;
+
+  const selectedUser = users.find(u => u.id === selectedUserId) ?? null;
+  const selectedUserMatches: MatchResult[] = selectedUser
+    ? computeAllMatches(
+        selectedUser,
+        users.filter(u => u.id !== selectedUser.id),
+        ratings[selectedUser.id] ?? {},
+        ratings
+      ).sort((a, b) => b.pMutual - a.pMutual)
+    : [];
 
   return (
     <Layout>
@@ -203,12 +215,173 @@ export default function HostPage() {
                           {new Date(user.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
+
+                      {/* View results button */}
+                      <button
+                        onClick={() => setSelectedUserId(selectedUserId === user.id ? null : user.id)}
+                        className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                          selectedUserId === user.id
+                            ? 'bg-amber/20 border-amber/40 text-amber font-semibold'
+                            : 'border-border text-dim hover:text-text hover:border-amber/30'
+                        }`}
+                      >
+                        {selectedUserId === user.id ? '▲ Hide' : '▼ Results'}
+                      </button>
                     </div>
                   );
                 })}
               </div>
             )}
           </div>
+
+          {/* Individual Results Panel */}
+          {selectedUser && (
+            <div className="card-glass rounded-2xl overflow-hidden border border-amber/20 animate-fade-in">
+              <div className="px-5 py-4 border-b border-border bg-amber/5 flex items-center justify-between">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-bright flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-amber/20 flex items-center justify-center text-amber text-sm font-black">
+                      {selectedUser.name[0].toUpperCase()}
+                    </span>
+                    {selectedUser.name}'s Results
+                  </h2>
+                  <p className="text-xs text-muted mt-0.5">
+                    Match predictions ranked by mutual probability
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedUserId(null)}
+                  className="text-dim hover:text-text text-lg leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Summary stats */}
+              {(() => {
+                const mutual = selectedUserMatches.filter(m => m.isMutualMatch).length;
+                const iLike = selectedUserMatches.filter(m => m.pILikeThem >= THRESHOLD).length;
+                const theyLike = selectedUserMatches.filter(m => m.pTheyLikeMe >= THRESHOLD).length;
+                return (
+                  <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+                    {[
+                      { label: 'Mutual Matches', value: mutual, color: 'text-rose' },
+                      { label: 'They Like', value: iLike, color: 'text-teal' },
+                      { label: 'Liked By', value: theyLike, color: 'text-purple' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="px-5 py-3 text-center">
+                        <div className={`font-display text-2xl font-black ${color}`}>{value}</div>
+                        <div className="text-xs text-muted mt-0.5">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Match table */}
+              {selectedUserMatches.length === 0 ? (
+                <div className="text-center py-8 text-dim text-sm">
+                  Not enough ratings yet to compute matches.
+                </div>
+              ) : (
+                <div className="divide-y divide-border/40">
+                  {/* Header */}
+                  <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-3 px-5 py-2 text-xs text-muted font-medium">
+                    <span className="w-6 text-center">#</span>
+                    <span>I Like Them</span>
+                    <span>They Like Me</span>
+                    <span>Mutual</span>
+                    <span className="w-20 text-center">Status</span>
+                  </div>
+                  {selectedUserMatches.map((m, idx) => {
+                    const pctI = Math.round(m.pILikeThem * 100);
+                    const pctThey = Math.round(m.pTheyLikeMe * 100);
+                    const pctMutual = Math.round(m.pMutual * 100);
+                    return (
+                      <div
+                        key={m.userId}
+                        className={`grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-3 px-5 py-3 items-center transition-colors ${
+                          m.isMutualMatch ? 'bg-rose/5' : 'hover:bg-surface/30'
+                        }`}
+                      >
+                        {/* Rank + Name */}
+                        <div className="w-6 text-center">
+                          <span className="text-xs font-mono text-muted">{idx + 1}</span>
+                        </div>
+
+                        {/* I like them */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-text">{m.name}</span>
+                            <span className={`text-xs font-mono ${m.iHaveRated ? 'text-teal' : 'text-muted'}`}>
+                              {m.iHaveRated ? `${pctI}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-border rounded-full overflow-hidden w-full">
+                            {m.iHaveRated && (
+                              <div
+                                className={`h-full rounded-full transition-all ${pctI >= THRESHOLD * 100 ? 'bg-teal' : 'bg-border-bright'}`}
+                                style={{ width: `${pctI}%` }}
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* They like me */}
+                        <div>
+                          <div className="flex items-center justify-end mb-1">
+                            <span className={`text-xs font-mono ${m.hasRatedMe ? 'text-purple' : 'text-muted'}`}>
+                              {m.hasRatedMe ? `${pctThey}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-border rounded-full overflow-hidden w-full">
+                            {m.hasRatedMe && (
+                              <div
+                                className={`h-full rounded-full transition-all ${pctThey >= THRESHOLD * 100 ? 'bg-purple' : 'bg-border-bright'}`}
+                                style={{ width: `${pctThey}%` }}
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Mutual */}
+                        <div>
+                          <div className="flex items-center justify-end mb-1">
+                            <span className={`text-xs font-mono font-bold ${m.isMutualMatch ? 'text-rose' : 'text-dim'}`}>
+                              {m.iHaveRated && m.hasRatedMe ? `${pctMutual}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-border rounded-full overflow-hidden w-full">
+                            {m.iHaveRated && m.hasRatedMe && (
+                              <div
+                                className={`h-full rounded-full transition-all ${m.isMutualMatch ? 'bg-rose' : 'bg-border-bright'}`}
+                                style={{ width: `${pctMutual}%` }}
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Status badge */}
+                        <div className="w-20 text-center">
+                          {!m.iHaveRated && !m.hasRatedMe ? (
+                            <span className="text-xs text-muted">pending</span>
+                          ) : m.isMutualMatch ? (
+                            <span className="inline-block text-xs bg-rose/15 text-rose border border-rose/30 rounded-full px-2 py-0.5 font-semibold">
+                              ♥ Match
+                            </span>
+                          ) : m.iHaveRated && m.hasRatedMe ? (
+                            <span className="text-xs text-dim">no match</span>
+                          ) : (
+                            <span className="text-xs text-muted">partial</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Rating matrix */}
           {users.length > 1 && users.length <= 12 && (
